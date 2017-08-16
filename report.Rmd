@@ -1,0 +1,205 @@
+---
+title: "Cam Report"
+author: "Lyron Winderbaum"
+date: "9 August 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(reshape2)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The Data
+
+Here I'll go through a little dataset I collected in which the subjects are 
+cams. Below is an image of a cam in use -- a size 6 Black Diamond Camalot C4, to 
+be precise. A cam is a device mostly used in recreational rockclimbing that can 
+be manipulated to have a variety of different widths and hence be placed into 
+cracks of different sizes.
+
+![A #6 Black Diamond Camalot C4 placed in a crack (image taken from [wikipedia](https://en.wikipedia.org/wiki/Camalot)).](https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Camalot_number_6.JPG/1200px-Camalot_number_6.JPG)
+
+There are several differernt brands that manufacture cams, and some of them 
+provide useful charts such as the one below.
+
+![A cam comparison chart taken from [the black diamond website](http://blackdiamondequipment.com/en/climbing-cams-stoppers-nuts-hexes/camalottm-BD262104_cfg.html)).](https://blackdiamondequipment.com/on/demandware.static/-/Library-Sites-SharedLibrary/default/dwaf34dfb1/images/tech-highlights/tech-highlight_S16_cam-chart.png)
+
+Now this chart is great, but not all brands provide such a nice figure, 
+and nobody provides a nice figure comparing different brands, or 
+organising it differently to put similar sized cams next to each other, or 
+looking at other factors like weight, etc. So I decided to go around to each of 
+the brands websites and collect all the technical specifications and 
+curate them into as single dataset, so that I could:
+
+ - Figure out how to make weird plots like this, which show a range, using 
+ ggplot2 --- something I thought was pretty interesting.
+ - Make other, more useful plots comparing different brands and placing 
+ cams of similar sizes next to each other so they can more easily be compared.
+
+So I did that, collected technical specifcations for 196 cams from four
+different brands:
+
+```{r read_data}
+cam_df = read.csv('cam_df.csv', stringsAsFactors = FALSE)
+head(cam_df)
+```
+
+Each row of this data.frame represents a different type or size of cam, and here 
+I will give a more detailed description of each of the columns, or variables, 
+recorded for each cam:
+
+ - **Brand** --- The company that manufactured the cam. I collected 
+ technical specifications from four brands: BD (Black Diamond), 
+ Totemcam, Metolius, and DMM.
+ - **Variety** --- a single brand often produces different varieties of 
+ cam, and this indicates this subdivision.
+ - **NoCams** --- indicates the number of camming units in the cam, usually either
+ three or four. 
+ - **Size** --- Usually a number, with the exception of the Metolius Super cams, 
+ used to identify different sizes within a single variety of cam, typically 
+ larger numbers indicate bigger cams.
+ - **Colour** --- Often the different sizes are colour coded, although different 
+ brands can have different colour schemes.
+ - **Weight** --- Weight in grams (g).
+ - **Strenth** --- Rated strength in kilo-Newtons (kN).
+ - **Min** --- Minimum width in centimeters (cm).
+ - **Max** --- Maximum width in centimeters (cm).
+
+Note that the values in the **Colour** column correspond to the colours as 
+reported in the technical specifcations, which when given to ggplot2 as strings
+are interpreted as colours, but not neccessarily colours that actually look 
+much like the colours of the cams themselves, so I'll make a few replacements
+to better match the look of the actual colours.
+
+```{r adjust_colours}
+# Fluro green and lighter grey look bad
+cam_df[cam_df$Colour == "green",        "Colour"] = "darkgreen"
+cam_df[cam_df$Colour == "grey",         "Colour"] = "darkgrey"
+
+# Metolius `light blue', `dark blue' and `light purple'
+cam_df[cam_df$Colour == "light blue",   "Colour"] = "skyblue"
+cam_df[cam_df$Colour == "light purple", "Colour"] = "orchid"
+cam_df[cam_df$Colour == "dark blue",    "Colour"] = "darkblue"
+
+# DMM `silver' (very dark grey)
+cam_df[cam_df$Colour == "silver",       "Colour"] = "grey50"
+```
+
+For convenience I'll also create a unique identifier column by combining the 
+**Brand**, **Variety** and **Size** columns.
+
+```{r unique_id}
+cam_df$ID = paste(cam_df$Brand, cam_df$Variety, cam_df$Size)
+```
+
+## Plots
+
+```{r plot_dragon_vs_camalot}
+# Compare C4s with corresponding sized Dragons
+cam_subset = subset(cam_df, Variety %in% c('C4', 'Dragon'))
+# Remove the two biggest C4 cams as they are bigger than the biggest Dragon Cams
+cam_subset = subset(cam_subset, !((Variety == 'C4') & (Size %in% c('5', '6'))))
+# Sort factor values neatly.
+cam_subset = cam_subset[order(cam_subset$Brand, cam_subset$Min), ]
+
+# using annotate()
+n = nrow(cam_subset)
+p <- ggplot()
+p <- p + annotate("rect", xmin = (n - 0.5):0.5, xmax = (n + 0.5):1.5,
+                  ymin = cam_subset$Min, ymax = cam_subset$Max,
+                  alpha = 1, fill = cam_subset$Colour)
+p <- p + annotate("text", x = n:1, y = (cam_subset$Min + cam_subset$Max) / 2,
+                  label = cam_subset$ID, size = 2)
+p <- p + scale_x_continuous(name = '', breaks = 1:n, 
+                            labels = rev(cam_subset$ID))
+p <- p + scale_y_continuous(name = "Range (mm)")
+p <- p + theme(panel.grid.minor = element_blank())
+p <- p + coord_flip()
+print(p)
+```
+
+Nice. This is a comparison of DMM Dragon cams to BD Camalots, in the sizes in 
+which they have comparable cams. But now that we have it in a data frame we 
+can reorganise this to make a better plot:
+
+```{r plot_dragon_vs_camalot_resorted}
+# Sort factor values better.
+tmp.order = ceiling((1:n)/2)
+tmp.order[seq(2, n, 2)] = ((n / 2) + 1):n
+cam_subset = cam_subset[tmp.order, ]
+
+# using annotate()
+n = nrow(cam_subset)
+p <- ggplot()
+p <- p + annotate("rect", xmin = (n - 0.5):0.5, xmax = (n + 0.5):1.5,
+                  ymin = cam_subset$Min, ymax = cam_subset$Max,
+                  alpha = 1, fill = cam_subset$Colour)
+p <- p + annotate("text", x = n:1, y = (cam_subset$Min + cam_subset$Max) / 2,
+                  label = cam_subset$ID, size = 2)
+p <- p + scale_x_continuous(name = '', breaks = 1:n, 
+                            labels = rev(cam_subset$ID))
+p <- p + scale_y_continuous(name = "Range (mm)")
+p <- p + theme(panel.grid.minor = element_blank())
+p <- p + coord_flip()
+print(p)
+```
+
+and we could plot weight on the y-axis, instead of ID:
+
+```{r plot_dragon_vs_camalot_weight}
+# using annotate()
+n = nrow(cam_subset)
+p <- ggplot()
+p <- p + annotate("rect", xmin = cam_subset$Weight - 4, 
+                  xmax = cam_subset$Weight + 4,
+                  ymin = cam_subset$Min, ymax = cam_subset$Max,
+                  alpha = 0.4, fill = cam_subset$Colour)
+p <- p + annotate("text", x = cam_subset$Weight, 
+                  y = (cam_subset$Min + cam_subset$Max) / 2,
+                  label = cam_subset$ID, size = 2)
+p <- p + scale_x_continuous(name = 'Weight (g)')
+p <- p + scale_y_continuous(name = "Range (mm)")
+p <- p + coord_flip()
+print(p)
+```
+
+we could zoom in a little and do a plot of all the cams in certain size range:
+
+```{r plot_weight_small_cams}
+cam_subset = subset(cam_df, Max < 20)
+# using annotate()
+n = nrow(cam_subset)
+p <- ggplot()
+p <- p + annotate("rect", xmin = cam_subset$Weight - 0.8, 
+                  xmax = cam_subset$Weight + 0.8,
+                  ymin = cam_subset$Min, ymax = cam_subset$Max,
+                  alpha = 0.4, fill = cam_subset$Colour)
+p <- p + annotate("text", x = cam_subset$Weight, 
+                  y = (cam_subset$Min + cam_subset$Max) / 2,
+                  label = cam_subset$ID, size = 2)
+p <- p + scale_x_continuous(name = 'Weight (g)')
+p <- p + scale_y_continuous(name = "Range (mm)")
+p <- p + coord_flip()
+print(p)
+```
+
+
+## Colophon
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+This report was written in [Rmarkdown](http://rmarkdown.rstudio.com/) using
+[RStudio](https://www.rstudio.com/products/rstudio/). 
+[knitr](https://yihui.name/knitr/) and [pandoc](http://pandoc.org/) converted 
+the raw Rmarkdown to html. This colophon was modelled after that of the book 
+[R packages](http://r-pkgs.had.co.nz/).
+
+This version of the report was built with:
+
+```{r colophon}
+devtools::session_info()
+```
+
+
