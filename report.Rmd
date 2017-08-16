@@ -188,15 +188,12 @@ print(p)
 
 ## Colophon
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
 This report was written in [Rmarkdown](http://rmarkdown.rstudio.com/) using
 [RStudio](https://www.rstudio.com/products/rstudio/). 
-[knitr](https://yihui.name/knitr/) and [pandoc](http://pandoc.org/) converted 
-the raw Rmarkdown to html. This colophon was modelled after that of the book 
-[R packages](http://r-pkgs.had.co.nz/).
-
-This version of the report was built with:
+Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word 
+documents. [knitr](https://yihui.name/knitr/) and 
+[pandoc](http://pandoc.org/) converted the raw Rmarkdown to html. This colophon 
+was modelled after that of the book [R packages](http://r-pkgs.had.co.nz/).
 
 ```{r colophon}
 devtools::session_info()
